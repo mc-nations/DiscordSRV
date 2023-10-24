@@ -24,10 +24,14 @@ import github.scarsz.discordsrv.Debug;
 import github.scarsz.discordsrv.DiscordSRV;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.VoiceChannel;
+import org.apache.commons.math3.ml.clustering.*;
+import org.apache.commons.math3.ml.distance.EuclideanDistance;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
+import java.awt.*;
 import java.util.*;
+import java.util.List;
 
 public class Network {
 
@@ -106,6 +110,69 @@ public class Network {
                 .filter(p -> p.getWorld().getName().equals(player.getWorld().getName()))
                 .anyMatch(p -> VoiceModule.verticalDistance(p.getLocation(), player.getLocation()) <= VoiceModule.getVerticalStrength() + falloff
                         && VoiceModule.horizontalDistance(p.getLocation(), player.getLocation()) <= VoiceModule.getHorizontalStrength() + falloff);
+    }
+
+    public void clusterPlayersDBSCAN() {
+        List<Point3D> points = new ArrayList<>();
+        
+        for (UUID uuid : players) {
+            Player player = Bukkit.getPlayer(uuid);
+            double x = player.getLocation().getX();
+            double y = player.getLocation().getY();
+            double z = player.getLocation().getZ();
+            Point3D point = new Point3D(x, y, z);
+            points.add(point);
+        }
+
+        // Set DBSCAN parameters (you may adjust these based on your needs)
+        double boundary = VoiceModule.getHorizontalStrength() + VoiceModule.getFalloff(); // Maximum distance for players to be in the same cluster
+
+
+
+        KMeansPlusPlusClusterer<Point3D> clusterer = new KMeansPlusPlusClusterer<>(2, 2);
+        List<CentroidCluster<Point3D>> clusters = clusterer.cluster(points);
+
+
+        // We only have one cluster because all players outside the epsilon are treated
+        // as noise and are removed
+
+        if(clusters.size() < 2) return;
+        EuclideanDistance distance = new EuclideanDistance();
+        if(distance.compute(clusters.get(0).getCenter().getPoint(), clusters.get(1).getCenter().getPoint()) < boundary) return;
+        CentroidCluster<Point3D> biggestCluster;
+        if(clusters.get(0).getPoints().size() < clusters.get(1).getPoints().size()) {
+            biggestCluster = clusters.get(1);
+        } else {
+            biggestCluster = clusters.get(0);
+        }
+        Cluster<Point3D> cluster = clusters.get(0);
+
+        for (UUID uuid : players) {
+            Player player = Bukkit.getPlayer(uuid);
+            if (!isPlayerInCluster(player, biggestCluster)) {
+                // Player is not in the cluster, remove them from the network
+                players.remove(uuid);
+            }
+        }
+    }
+
+    private boolean isPlayerInCluster(Player player, Cluster<Point3D> cluster) {
+        double playerX = player.getLocation().getX();
+        double playerY = player.getLocation().getY();
+        double playerZ = player.getLocation().getZ();
+
+        for (Point3D point : cluster.getPoints()) {
+            double[] coordinates = point.getPoint();
+            double x = coordinates[0];
+            double y = coordinates[1];
+            double z = coordinates[2];
+
+            if (playerX == x && playerY == y && playerZ == z) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

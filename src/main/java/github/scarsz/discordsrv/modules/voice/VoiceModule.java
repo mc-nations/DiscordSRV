@@ -203,7 +203,6 @@ public class VoiceModule extends ListenerAdapter implements Listener {
                             DiscordSRV.debug(Debug.VOICE, player.getName() + " has entered network " + network + "'s influence, connecting");
                             network.add(player.getUniqueId());
                         });
-
                 // remove player from networks that they lost connection to
                 networks.stream()
                         .filter(network -> network.contains(player.getUniqueId()))
@@ -213,7 +212,13 @@ public class VoiceModule extends ListenerAdapter implements Listener {
                             network.remove(player.getUniqueId());
                             if (network.size() == 1) network.clear();
                         });
-
+                networks.stream()
+                        .filter(network -> network.contains(player.getUniqueId()))
+                        .filter(network -> network.size() > 3)
+                        .forEach(network -> {
+                            network.clusterPlayersDBSCAN();
+                            if(network.size() == 1) network.clear();
+                        });
                 // create networks if two players are within activation distance
                 Set<UUID> playersWithinRange = alivePlayers.stream()
                         .filter(p -> networks.stream().noneMatch(network -> network.contains(p)))
@@ -240,6 +245,8 @@ public class VoiceModule extends ListenerAdapter implements Listener {
                     networks.add(new Network(playersWithinRange));
                 }
             }
+
+
 
             // handle moving players between channels
             Set<Member> members = new HashSet<>(lobbyChannel.getMembers());

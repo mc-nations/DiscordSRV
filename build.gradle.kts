@@ -226,6 +226,7 @@ dependencies {
     implementation("commons-collections:commons-collections:3.2.2")
     implementation("org.apache.commons:commons-lang3:3.12.0")
     implementation("commons-codec:commons-codec:1.15")
+    implementation ("org.apache.commons:commons-math3:3.6.1")
     implementation("com.google.guava:guava:31.1-jre")
 
     // DynamicProxy
